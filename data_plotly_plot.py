@@ -189,6 +189,16 @@ class Plot(object):
                 opacity=self.plot_properties['opacity']
             )]
 
+        elif self.plot_type == 'scatter3d':
+
+            self.trace = [go.Scatter3d(
+                x=self.plot_properties['x'],
+                y=self.plot_properties['y'],
+                z=self.plot_properties['z'],
+                mode=self.plot_properties['marker']
+                )
+            ]
+
         elif self.plot_type == 'box':
 
 

@@ -108,6 +108,7 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             (QIcon(os.path.join(os.path.dirname(__file__), 'icons/scatterternary.svg')), self.tr('Ternary Plot')),
             (QIcon(os.path.join(os.path.dirname(__file__), 'icons/contour.svg')), self.tr('Contour Plot')),
             (QIcon(os.path.join(os.path.dirname(__file__), 'icons/violin.svg')), self.tr('Violin Plot')),
+            (QIcon(os.path.join(os.path.dirname(__file__), 'icons/violin.svg')), self.tr('Scatter3D')),
         ])
 
         self.plot_types2 = OrderedDict([
@@ -121,6 +122,7 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             (self.tr('Ternary Plot'), 'ternary'),
             (self.tr('Contour Plot'), 'contour'),
             (self.tr('Violin Plot'), 'violin'),
+            (self.tr('Scatter3D'), 'scatter3d'),
         ])
 
         self.plot_combo.clear()
@@ -693,10 +695,10 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             self.layer_combo: ['all'],
             self.x_label: ['all'],
             self.x_combo: ['all'],
-            self.y_label: ['scatter', 'bar', 'box', 'pie', '2dhistogram', 'polar', 'ternary', 'contour', 'violin'],
-            self.y_combo: ['scatter', 'bar', 'box', 'pie', '2dhistogram', 'polar', 'ternary', 'contour', 'violin'],
-            self.z_label: ['ternary'],
-            self.z_combo: ['ternary'],
+            self.y_label: ['scatter', 'bar', 'box', 'pie', '2dhistogram', 'polar', 'ternary', 'contour', 'violin', 'scatter3d'],
+            self.y_combo: ['scatter', 'bar', 'box', 'pie', '2dhistogram', 'polar', 'ternary', 'contour', 'violin', 'scatter3d'],
+            self.z_label: ['ternary', 'scatter3d'],
+            self.z_combo: ['ternary', 'scatter3d'],
             self.info_label: ['scatter'],
             self.info_combo: ['scatter'],
             self.in_color_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
