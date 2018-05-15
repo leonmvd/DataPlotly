@@ -108,7 +108,7 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             (QIcon(os.path.join(os.path.dirname(__file__), 'icons/scatterternary.svg')), self.tr('Ternary Plot')),
             (QIcon(os.path.join(os.path.dirname(__file__), 'icons/contour.svg')), self.tr('Contour Plot')),
             (QIcon(os.path.join(os.path.dirname(__file__), 'icons/violin.svg')), self.tr('Violin Plot')),
-            (QIcon(os.path.join(os.path.dirname(__file__), 'icons/violin.svg')), self.tr('Scatter3D')),
+            (QIcon(os.path.join(os.path.dirname(__file__), 'icons/3d.svg')), self.tr('Scatter3D')),
         ])
 
         self.plot_types2 = OrderedDict([
@@ -258,7 +258,7 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         # if data defined button is active
         if self.in_color_defined_button.isActive():
             # if plot is scatter or bar
-            if self.ptype == 'scatter' or self.ptype == 'bar' or self.ptype == 'ternary':
+            if self.ptype == 'scatter' or self.ptype == 'bar' or self.ptype == 'ternary' or self.ptype == 'scatter3d':
                 self.in_color_combo.setEnabled(False)
                 self.color_scale_data_defined_in.setVisible(True)
                 self.color_scale_data_defined_in.setEnabled(True)
@@ -306,7 +306,7 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         '''
 
         if self.in_color_defined_button.isActive():
-            if self.ptype == 'scatter' or self.ptype == 'bar' or self.ptype == 'ternary':
+            if self.ptype == 'scatter' or self.ptype == 'bar' or self.ptype == 'ternary' or self.ptype == 'scatter3d':
                 in_color = self.in_color_defined_button.toProperty().expressionString()
                 self.in_color = QgsVectorLayerUtils.getValues(self.layer_combo.currentLayer(), in_color, selectedOnly=self.selected_feature_check.isChecked())[0]
             else:
@@ -701,34 +701,34 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             self.z_combo: ['ternary', 'scatter3d'],
             self.info_label: ['scatter'],
             self.info_combo: ['scatter'],
-            self.in_color_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
-            self.in_color_combo: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
-            self.in_color_defined_button: ['scatter', 'bar', 'ternary'],
-            self.color_scale_data_defined_in: ['scatter', 'bar', 'ternary'],
-            self.color_scale_data_defined_in_label: ['scatter', 'bar', 'ternary'],
-            self.color_scale_data_defined_in_check: ['scatter', 'bar', 'ternary'],
+            self.in_color_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin', 'scatter3d'],
+            self.in_color_combo: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin', 'scatter3d'],
+            self.in_color_defined_button: ['scatter', 'bar', 'ternary', 'scatter3d'],
+            self.color_scale_data_defined_in: ['scatter', 'bar', 'ternary', 'scatter3d'],
+            self.color_scale_data_defined_in_label: ['scatter', 'bar', 'ternary', 'scatter3d'],
+            self.color_scale_data_defined_in_check: ['scatter', 'bar', 'ternary', 'scatter3d'],
             self.color_scale_data_defined_in_invert_check: ['bar', 'ternary'],
-            self.out_color_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
-            self.out_color_combo: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
-            self.marker_width_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
-            self.marker_width: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
-            self.marker_size_lab: ['scatter', 'polar', 'ternary'],
-            self.marker_size: ['scatter', 'polar', 'ternary'],
-            self.size_defined_button: ['scatter', 'ternary'],
-            self.marker_type_lab: ['scatter', 'polar'],
-            self.marker_type_combo: ['scatter', 'polar'],
-            self.alpha_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
-            self.alpha_slid: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
-            self.alpha_num: ['scatter', 'bar', 'box', 'histogram', 'ternary', 'violin'],
-            self.mGroupBox_2: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'contour', '2dhistogram', 'violin'],
+            self.out_color_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin', 'scatter3d'],
+            self.out_color_combo: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin', 'scatter3d'],
+            self.marker_width_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin', 'scatter3d'],
+            self.marker_width: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin', 'scatter3d'],
+            self.marker_size_lab: ['scatter', 'polar', 'ternary', 'scatter3d'],
+            self.marker_size: ['scatter', 'polar', 'ternary', 'scatter3d'],
+            self.size_defined_button: ['scatter', 'ternary', 'scatter3d'],
+            self.marker_type_lab: ['scatter', 'polar', 'scatter3d'],
+            self.marker_type_combo: ['scatter', 'polar', 'scatter3d'],
+            self.alpha_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin', 'scatter3d'],
+            self.alpha_slid: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin', 'scatter3d'],
+            self.alpha_num: ['scatter', 'bar', 'box', 'histogram', 'ternary', 'violin', 'scatter3d'],
+            self.mGroupBox_2: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'contour', '2dhistogram', 'violin', 'scatter3d'],
             self.bar_mode_lab: ['bar', 'histogram'],
             self.bar_mode_combo: ['bar', 'histogram'],
             self.legend_label: ['all'],
             self.legend_title: ['all'],
-            self.point_lab: ['scatter', 'ternary', 'polar'],
-            self.point_combo: ['scatter', 'ternary', 'polar'],
-            self.line_lab: ['scatter', 'polar'],
-            self.line_combo: ['scatter', 'polar'],
+            self.point_lab: ['scatter', 'ternary', 'polar', 'scatter3d'],
+            self.point_combo: ['scatter', 'ternary', 'polar', 'scatter3d'],
+            self.line_lab: ['scatter', 'polar', 'scatter3d'],
+            self.line_combo: ['scatter', 'polar', 'scatter3d'],
             self.color_scale_label: ['contour', '2dhistogram'],
             self.color_scale_combo: ['contour', '2dhistogram'],
             self.contour_type_label: ['contour'],
@@ -740,12 +740,12 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             self.orientation_legend_check: ['scatter', 'bar', 'box', 'histogram', 'ternary', 'pie', 'violin'],
             self.plot_title_lab: ['all'],
             self.plot_title_line: ['all'],
-            self.x_axis_label: ['scatter', 'bar', 'box', 'histogram', '2dhistogram', 'ternary', 'violin'],
-            self.x_axis_title: ['scatter', 'bar', 'box', 'histogram', '2dhistogram', 'ternary', 'violin'],
-            self.y_axis_label: ['scatter', 'bar', 'box', '2dhistogram', 'ternary', 'violin'],
-            self.y_axis_title: ['scatter', 'bar', 'box', '2dhistogram', 'ternary', 'violin'],
-            self.z_axis_label: ['ternary'],
-            self.z_axis_title: ['ternary'],
+            self.x_axis_label: ['scatter', 'bar', 'box', 'histogram', '2dhistogram', 'ternary', 'violin', 'scatter3d'],
+            self.x_axis_title: ['scatter', 'bar', 'box', 'histogram', '2dhistogram', 'ternary', 'violin', 'scatter3d'],
+            self.y_axis_label: ['scatter', 'bar', 'box', '2dhistogram', 'ternary', 'violin', 'scatter3d'],
+            self.y_axis_title: ['scatter', 'bar', 'box', '2dhistogram', 'ternary', 'violin', 'scatter3d'],
+            self.z_axis_label: ['ternary', 'scatter3d'],
+            self.z_axis_title: ['ternary', 'scatter3d'],
             self.x_axis_mode_label: ['scatter', 'box'],
             self.y_axis_mode_label: ['scatter', 'box'],
             self.x_axis_mode_combo: ['scatter', 'box'],
@@ -762,8 +762,8 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             self.range_slider_combo: ['scatter'],
             self.hist_norm_label: ['histogram'],
             self.hist_norm_combo: ['histogram'],
-            self.additional_info_label: ['scatter', 'ternary'],
-            self.additional_info_combo: ['scatter', 'ternary'],
+            self.additional_info_label: ['scatter', 'ternary', 'scatter3d'],
+            self.additional_info_combo: ['scatter', 'ternary', 'scatter3d'],
             self.cumulative_hist_check: ['histogram'],
             self.invert_hist_check: ['histogram'],
             self.bins_check: ['histogram'],

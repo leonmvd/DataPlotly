@@ -195,9 +195,35 @@ class Plot(object):
                 x=self.plot_properties['x'],
                 y=self.plot_properties['y'],
                 z=self.plot_properties['z'],
-                mode=self.plot_properties['marker']
-                )
-            ]
+                mode=self.plot_properties['marker'],
+                name=self.plot_properties['name'],
+                ids=self.plot_properties['featureIds'],
+                customdata=self.plot_properties['custom'],
+                text=self.plot_properties['additional_hover_text'],
+                hoverinfo=self.plot_properties['hover_text'],
+                marker=dict(
+                    color=self.plot_properties['in_color'],
+                    colorscale=self.plot_properties['colorscale_in'],
+                    showscale=self.plot_properties['show_colorscale_legend'],
+                    reversescale=self.plot_properties['invert_color_scale'],
+                    colorbar=dict(
+                        len=0.8
+                    ),
+                    size=self.plot_properties['marker_size'],
+                    symbol=self.plot_properties['marker_symbol'],
+                    line=dict(
+                        color=self.plot_properties['out_color'],
+                        width=self.plot_properties['marker_width']
+                    )
+                ),
+                line=dict(
+                    color=self.plot_properties['in_color'],
+                    width=self.plot_properties['marker_width'],
+                    dash=self.plot_properties['line_dash']
+                ),
+                opacity=self.plot_properties['opacity']
+            )]
+
 
         elif self.plot_type == 'box':
 
@@ -490,6 +516,19 @@ class Plot(object):
                     title=self.plot_layout['z_title'],
                     ticksuffix='%'
                 ),
+            )
+
+        elif self.plot_type == 'scatter3d':
+            self.layout['scene'] = dict(
+                xaxis=dict(
+                    title=self.plot_layout['x_title'],
+                ),
+                yaxis=dict(
+                    title=self.plot_layout['y_title'],
+                ),
+                zaxis=dict(
+                    title=self.plot_layout['z_title'],
+                )
             )
 
         return self.layout
