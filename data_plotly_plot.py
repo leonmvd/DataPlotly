@@ -50,14 +50,88 @@ class Plot(object):
         polyfillpath = 'file:///'
         plotlypath = 'file:///'
         polyfillpath += os.path.join(os.path.dirname(__file__), 'jsscripts/polyfill.min.js')
-        plotlypath += os.path.join(os.path.dirname(__file__), 'jsscripts/plotly-1.31.0.min.js')
+        plotlypath += os.path.join(os.path.dirname(__file__), 'jsscripts/plotly-1.34.0.min.js')
     else:
         polyfillpath = os.path.join(os.path.dirname(__file__), 'jsscripts/polyfill.min.js')
-        plotlypath = os.path.join(os.path.dirname(__file__), 'jsscripts/plotly-1.31.0.min.js')
+        plotlypath = os.path.join(os.path.dirname(__file__), 'jsscripts/plotly-1.34.0.min.js')
 
 
     def __init__(self, plot_type, plot_properties, plot_layout):
 
+        # Define default plot dictionnary used as a basis for plot initilization
+        # prepare the default dictionary with None values
+        # plot properties
+        plotBaseProperties = {
+            'x': None,
+            'y': None,
+            'z': None,
+            'marker': None,
+            'featureIds': None,
+            'featureBox': None,
+            'custom': None,
+            'hover_text': None,
+            'additional_hover_text': None,
+            'x_name': None,
+            'y_name': None,
+            'z_name': None,
+            'in_color': None,
+            'out_color': None,
+            'marker_width': 1,
+            'marker_size': 10,
+            'marker_symbol': None,
+            'line_dash': None,
+            'box_orientation': 'v',
+            'opacity': None,
+            'box_stat': None,
+            'box_outliers': False,
+            'name': None,
+            'normalization': None,
+            'cont_type': None,
+            'color_scale': None,
+            'colorscale_in': None,
+            'show_lines': False,
+            'cumulative': False,
+            'show_colorscale_legend': False,
+            'invert_color_scale': False,
+            'invert_hist': False,
+            'bins': None
+        }
+
+        # layout nested dictionary
+        plotBaseLayout = {
+            'title': 'Plot Title',
+            'legend': True,
+            'legend_orientation': 'h',
+            'x_title': None,
+            'y_title': None,
+            'z_title': None,
+            'xaxis': None,
+            'bar_mode': None,
+            'x_type': None,
+            'y_type': None,
+            'x_inv': None,
+            'y_inv': None,
+            'range_slider': {'visible': False},
+            'bargaps': None
+        }
+        self.plotBaseDic = {
+            'plot_type': None,
+            'layer': None,
+            'plot_prop': plotBaseProperties,
+            'layout_prop': plotBaseLayout
+        }
+
+        # Set needed properties which are not yet set
+        # update the plot_prop
+        for k in self.plotBaseDic["plot_prop"]:
+            if k not in plot_properties:
+                plot_properties[k] = self.plotBaseDic["plot_prop"][k]
+        # update the layout_prop
+        for k in self.plotBaseDic["layout_prop"]:
+            if k not in plot_layout:
+                plot_layout[k] = self.plotBaseDic["layout_prop"][k]
+
+        # Set class properties
         self.plot_type = plot_type
         self.plot_properties = plot_properties
         self.plot_layout = plot_layout
@@ -94,6 +168,12 @@ class Plot(object):
                 hoverinfo=self.plot_properties['hover_text'],
                 marker=dict(
                     color=self.plot_properties['in_color'],
+                    colorscale=self.plot_properties['colorscale_in'],
+                    showscale=self.plot_properties['show_colorscale_legend'],
+                    reversescale=self.plot_properties['invert_color_scale'],
+                    colorbar=dict(
+                        len=0.8
+                    ),
                     size=self.plot_properties['marker_size'],
                     symbol=self.plot_properties['marker_symbol'],
                     line=dict(
@@ -102,7 +182,6 @@ class Plot(object):
                     )
                 ),
                 line=dict(
-                    color=self.plot_properties['in_color'],
                     width=self.plot_properties['marker_width'],
                     dash=self.plot_properties['line_dash']
                 ),
@@ -146,6 +225,12 @@ class Plot(object):
                 orientation=self.plot_properties['box_orientation'],
                 marker=dict(
                     color=self.plot_properties['in_color'],
+                    colorscale=self.plot_properties['colorscale_in'],
+                    showscale=self.plot_properties['show_colorscale_legend'],
+                    reversescale=self.plot_properties['invert_color_scale'],
+                    colorbar=dict(
+                        len=0.8
+                    ),
                     line=dict(
                         color=self.plot_properties['out_color'],
                         width=self.plot_properties['marker_width']
@@ -173,7 +258,8 @@ class Plot(object):
                 histnorm=self.plot_properties['normalization'],
                 opacity=self.plot_properties['opacity'],
                 cumulative=dict(
-                    enabled=self.plot_properties['cumulative']
+                    enabled=self.plot_properties['cumulative'],
+                    direction=self.plot_properties['invert_hist']
                     )
             )]
 
@@ -182,6 +268,7 @@ class Plot(object):
             self.trace = [go.Pie(
                 labels=self.plot_properties['x'],
                 values=self.plot_properties['y'],
+                name=self.plot_properties['custom'][0],
             )]
 
         elif self.plot_type == '2dhistogram':
@@ -194,14 +281,14 @@ class Plot(object):
 
         elif self.plot_type == 'polar':
 
-            self.trace = [go.Scatter(
+            self.trace = [go.Scatterpolar(
                 r=self.plot_properties['x'],
-                t=self.plot_properties['y'],
+                theta=self.plot_properties['y'],
                 mode=self.plot_properties['marker'],
                 name=self.plot_properties['y_name'],
                 marker=dict(
                     color=self.plot_properties['in_color'],
-                    size=self.plot_properties['marker_size'] + 100,
+                    size=self.plot_properties['marker_size'],
                     symbol=self.plot_properties['marker_symbol'],
                     line=dict(
                         color=self.plot_properties['out_color'],
@@ -235,6 +322,12 @@ class Plot(object):
                 mode='markers',
                 marker=dict(
                     color=self.plot_properties['in_color'],
+                    colorscale=self.plot_properties['colorscale_in'],
+                    showscale=self.plot_properties['show_colorscale_legend'],
+                    reversescale=self.plot_properties['invert_color_scale'],
+                    colorbar=dict(
+                        len=0.8
+                    ),
                     size=self.plot_properties['marker_size'],
                     symbol=self.plot_properties['marker_symbol'],
                     line=dict(
@@ -256,6 +349,31 @@ class Plot(object):
                 colorscale=self.plot_properties['color_scale'],
                 opacity=self.plot_properties['opacity']
             )]
+
+        elif self.plot_type == 'violin':
+
+            # flip the variables according to the box orientation
+            if self.plot_properties['box_orientation'] == 'h':
+                self.plot_properties['x'], self.plot_properties['y'] = self.plot_properties['y'], self.plot_properties['x']
+
+            self.trace = [go.Violin(
+                x=self.plot_properties['x'],
+                y=self.plot_properties['y'],
+                name=self.plot_properties['name'],
+                customdata=self.plot_properties['custom'],
+                orientation=self.plot_properties['box_orientation'],
+                points=self.plot_properties['box_outliers'],
+                fillcolor=self.plot_properties['in_color'],
+                line=dict(
+                    color=self.plot_properties['out_color'],
+                    width=self.plot_properties['marker_width']
+                ),
+                opacity=self.plot_properties['opacity'],
+                meanline=dict(
+                    visible=self.plot_properties['show_mean_line']
+                ),
+                side=self.plot_properties['violin_side']
+                )]
 
         return self.trace
 
@@ -318,19 +436,18 @@ class Plot(object):
 
         elif self.plot_type == 'histogram':
             self.layout['barmode'] = self.plot_layout['bar_mode']
+            self.layout['bargroupgap'] = self.plot_layout['bargaps']
 
         elif self.plot_type == 'pie':
             self.layout['xaxis'].update(title=''),
             self.layout['xaxis'].update(showgrid=False),
             self.layout['xaxis'].update(zeroline=False),
             self.layout['xaxis'].update(showline=False),
-            self.layout['xaxis'].update(autotick=False),
             self.layout['xaxis'].update(showticklabels=False),
             self.layout['yaxis'].update(title=''),
             self.layout['yaxis'].update(showgrid=False),
             self.layout['yaxis'].update(zeroline=False),
             self.layout['yaxis'].update(showline=False),
-            self.layout['yaxis'].update(autotick=False),
             self.layout['yaxis'].update(showticklabels=False)
 
         elif self.plot_type == 'ternary':
@@ -338,13 +455,11 @@ class Plot(object):
             self.layout['xaxis'].update(showgrid=False),
             self.layout['xaxis'].update(zeroline=False),
             self.layout['xaxis'].update(showline=False),
-            self.layout['xaxis'].update(autotick=False),
             self.layout['xaxis'].update(showticklabels=False),
             self.layout['yaxis'].update(title=''),
             self.layout['yaxis'].update(showgrid=False),
             self.layout['yaxis'].update(zeroline=False),
             self.layout['yaxis'].update(showline=False),
-            self.layout['yaxis'].update(autotick=False),
             self.layout['yaxis'].update(showticklabels=False)
             self.layout['ternary'] = dict(
                 sum=100,
@@ -405,29 +520,102 @@ class Plot(object):
         var featureIds = [];
         var dd = {};
         dd["fidd"] = data.points[0].id
-
         dd["mode"] = 'clicking'
 
+        // loop and create dictionary depending on plot type
         for(var i=0; i < data.points.length; i++){
 
+        // scatter plot
         if(data.points[i].data.type == 'scatter'){
-        dd["uid"] = data.points[i].data.uid
-        dd["type"] = data.points[i].data.type
+            dd["uid"] = data.points[i].data.uid
+            dd["type"] = data.points[i].data.type
 
-        data.points.forEach(function(pt){
-        dd["fid"] = pt.id
+            data.points.forEach(function(pt){
+            dd["fid"] = pt.id
             })
-
         }
 
-        else {
-        dd["uid"] = data.points[i].data.uid
-        dd["id"] = data.points[i].x
-        dd["type"] = data.points[i].data.type
-        dd["field"] = data.points[i].data.customdata
+        // pie
+
+        else if(data.points[i].data.type == 'pie'){
+          dd["type"] = data.points[i].data.type
+          dd["label"] = data.points[i].label
+          dd["field"] = data.points[i].data.name
+          console.log(data.points[i].label)
+          console.log(data.points[i])
         }
+
+        // histogram
+        else if(data.points[i].data.type == 'histogram'){
+            dd["type"] = data.points[i].data.type
+            dd["uid"] = data.points[i].data.uid
+            dd["field"] = data.points[i].data.name
+
+            // correct axis orientation
+            if(data.points[i].data.orientation == 'v'){
+                dd["id"] = data.points[i].x
+                dd["bin_step"] = data.points[i].data.xbins.size
+            }
+            else {
+                dd["id"] = data.points[i].y
+                dd["bin_step"] = data.points[i].data.ybins.size
+            }
+        }
+
+        // box plot
+        else if(data.points[i].data.type == 'box'){
+            dd["uid"] = data.points[i].data.uid
+            dd["type"] = data.points[i].data.type
+            dd["field"] = data.points[i].data.customdata[0]
+
+                // correct axis orientation
+                if(data.points[i].data.orientation == 'v'){
+                    dd["id"] = data.points[i].x
+                }
+                else {
+                    dd["id"] = data.points[i].y
+                }
             }
 
+        // violin plot
+        else if(data.points[i].data.type == 'violin'){
+            dd["uid"] = data.points[i].data.uid
+            dd["type"] = data.points[i].data.type
+            dd["field"] = data.points[i].data.customdata[0]
+
+                // correct axis orientation (for violin is viceversa)
+                if(data.points[i].data.orientation == 'v'){
+                    dd["id"] = data.points[i].x
+                }
+                else {
+                    dd["id"] = data.points[i].y
+                }
+            }
+
+        // bar plot
+        else if(data.points[i].data.type == 'bar'){
+            dd["uid"] = data.points[i].data.uid
+            dd["type"] = data.points[i].data.type
+            dd["field"] = data.points[i].data.customdata
+
+                // correct axis orientation
+                if(data.points[i].data.orientation == 'v'){
+                    dd["id"] = data.points[i].x
+                }
+                else {
+                    dd["id"] = data.points[i].y
+                }
+            }
+
+        // ternary
+        else if(data.points[i].data.type == 'scatterternary'){
+            dd["uid"] = data.points[i].data.uid
+            dd["type"] = data.points[i].data.type
+            dd["field"] = data.points[i].data.customdata
+            dd["fid"] = data.points[i].pointNumber
+            }
+
+            }
         window.status = JSON.stringify(dd)
         });
         </script>'''
@@ -464,8 +652,10 @@ class Plot(object):
 
         # first lines of additional html with the link to the local javascript
         self.raw_plot = '<head><meta charset="utf-8" /><script src="{}"></script><script src="{}"></script></head>'.format(self.polyfillpath, self.plotlypath)
+        # set some configurations
+        config = {'scrollZoom': True, 'editable': True}
         # call the plot method without all the javascript code
-        self.raw_plot += plotly.offline.plot(fig, output_type='div', include_plotlyjs=False, show_link=False)
+        self.raw_plot += plotly.offline.plot(fig, output_type='div', include_plotlyjs=False, show_link=False, config=config)
         # insert callback for javascript events
         self.raw_plot += self.js_callback(self.raw_plot)
 
@@ -526,10 +716,12 @@ class Plot(object):
         else:
             figures = go.Figure(data=ptrace, layout=self.layout)
 
+        # set some configurations
+        config = {'scrollZoom': True, 'editable': True}
         # first lines of additional html with the link to the local javascript
         self.raw_plot = '<head><meta charset="utf-8" /><script src="{}"></script><script src="{}"></script></head>'.format(self.polyfillpath, self.plotlypath)
         # call the plot method without all the javascript code
-        self.raw_plot += plotly.offline.plot(figures, output_type='div', include_plotlyjs=False, show_link=False)
+        self.raw_plot += plotly.offline.plot(figures, output_type='div', include_plotlyjs=False, show_link=False, config=config)
         # insert callback for javascript events
         self.raw_plot += self.js_callback(self.raw_plot)
 
@@ -583,10 +775,12 @@ class Plot(object):
             for i, itm in enumerate(ptrace):
                 fig.append_trace(itm, i + 1, column)
 
+        # set some configurations
+        config = {'scrollZoom': True, 'editable': True}
         # first lines of additional html with the link to the local javascript
         self.raw_plot = '<head><meta charset="utf-8" /><script src="{}"></script><script src="{}"></script></head>'.format(self.polyfillpath, self.plotlypath)
         # call the plot method without all the javascript code
-        self.raw_plot += plotly.offline.plot(fig, output_type='div', include_plotlyjs=False, show_link=False)
+        self.raw_plot += plotly.offline.plot(fig, output_type='div', include_plotlyjs=False, show_link=False, config=config)
         # insert callback for javascript events
         self.raw_plot += self.js_callback(self.raw_plot)
 

@@ -26,12 +26,17 @@ import json
 
 from PyQt5 import uic, QtWidgets
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QFont, QIcon, QImage, QPainter
+from PyQt5.QtGui import QFont, QIcon, QImage, QPainter, QColor
 from PyQt5.QtCore import QUrl, QFileInfo, QSettings, pyqtSignal
 from PyQt5.QtWebKit import QWebSettings
 from PyQt5.QtWebKitWidgets import *
 from qgis.gui import *
-from qgis.core import QgsNetworkAccessManager
+from qgis.core import (
+    Qgis,
+    QgsNetworkAccessManager,
+    QgsVectorLayerUtils,
+    QgsFeatureRequest,
+    QgsMapLayerProxyModel)
 from qgis.utils import iface
 import plotly
 import plotly.graph_objs as go
@@ -51,7 +56,7 @@ FORM_CLASS, _ = uic.loadUiType(os.path.join(
 class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
 
     closingPlugin = pyqtSignal()
-    # mit signal when dialog is resized
+    # emit signal when dialog is resized
     resizeWindow = pyqtSignal()
 
     def __init__(self, parent=None):
@@ -78,6 +83,7 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
 
         # set the icon of QgspropertyOverrideButton not taken automatically
         self.size_defined_button.setIcon(QIcon(os.path.join(os.path.dirname(__file__), 'icons/mIconDataDefineExpression.svg')))
+        self.in_color_defined_button.setIcon(QIcon(os.path.join(os.path.dirname(__file__), 'icons/mIconDataDefineExpression.svg')))
 
         # ListWidget icons and themes
         self.listWidget_icons = [
@@ -106,6 +112,7 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             (QIcon(os.path.join(os.path.dirname(__file__), 'icons/polar.svg')), self.tr('Polar Plot')),
             (QIcon(os.path.join(os.path.dirname(__file__), 'icons/scatterternary.svg')), self.tr('Ternary Plot')),
             (QIcon(os.path.join(os.path.dirname(__file__), 'icons/contour.svg')), self.tr('Contour Plot')),
+            (QIcon(os.path.join(os.path.dirname(__file__), 'icons/violin.svg')), self.tr('Violin Plot')),
         ])
 
         self.plot_types2 = OrderedDict([
@@ -118,6 +125,7 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             (self.tr('Polar Plot'), 'polar'),
             (self.tr('Ternary Plot'), 'ternary'),
             (self.tr('Contour Plot'), 'contour'),
+            (self.tr('Violin Plot'), 'violin'),
         ])
 
         self.plot_combo.clear()
@@ -200,13 +208,23 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         # get the plot type from the combobox
         self.ptype = self.plot_types2[self.plot_combo.currentText()]
 
-        # load the layer fields in the init function
+        # load the layer fields in the init function for the datadefined buttons
         self.size_defined_button.setVectorLayer(self.layer_combo.currentLayer())
+        self.in_color_defined_button.setVectorLayer(self.layer_combo.currentLayer())
         # connect the size defined button to the correct functions
         self.size_defined_button.changed.connect(self.refreshSizeDefined)
+        # connect the color defined button to the correct function
+        self.in_color_defined_button.changed.connect(self.resfreshColorDefined)
 
         # connect to refreshing function of listWidget and stackedWidgets
         self.listWidget.currentRowChanged.connect(self.updateStacked)
+
+        # connect the plot changing to the color data defined buttons
+        self.plot_combo.currentIndexChanged.connect(self.resfreshColorDefined)
+
+        # better default colors
+        self.in_color_combo.setColor(QColor('#8EBAD9'))
+        self.out_color_combo.setColor(QColor('#1F77B4'))
 
     def updateStacked(self, row):
         '''
@@ -233,6 +251,46 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         else:
             self.marker_size.setEnabled(True)
 
+    def resfreshColorDefined(self):
+        '''
+        refreshing function for color data defined button
+
+        checks is the datadefined button is active and check also the plot type
+        in order to deactivate the color when not needed
+        '''
+        # if data defined button is active
+        if self.in_color_defined_button.isActive():
+            # if plot is scatter or bar
+            if self.ptype == 'scatter' or self.ptype == 'bar' or self.ptype == 'ternary':
+                self.in_color_combo.setEnabled(False)
+                self.color_scale_data_defined_in.setVisible(True)
+                self.color_scale_data_defined_in.setEnabled(True)
+                self.color_scale_data_defined_in_label.setVisible(True)
+                self.color_scale_data_defined_in_label.setEnabled(True)
+                self.color_scale_data_defined_in_check.setVisible(True)
+                self.color_scale_data_defined_in_check.setEnabled(True)
+                self.color_scale_data_defined_in_invert_check.setVisible(True)
+                self.color_scale_data_defined_in_invert_check.setEnabled(True)
+            # if plot is not scatter or bar
+            else:
+                self.in_color_combo.setEnabled(True)
+                self.color_scale_data_defined_in.setVisible(False)
+                self.color_scale_data_defined_in.setEnabled(False)
+                self.color_scale_data_defined_in_label.setVisible(False)
+                self.color_scale_data_defined_in_label.setEnabled(False)
+                self.color_scale_data_defined_in_check.setVisible(False)
+                self.color_scale_data_defined_in_check.setEnabled(False)
+                self.color_scale_data_defined_in_invert_check.setVisible(False)
+                self.color_scale_data_defined_in_invert_check.setEnabled(False)
+        # if datadefined button is deactivated
+        else:
+                self.in_color_combo.setEnabled(True)
+                self.color_scale_data_defined_in.setVisible(False)
+                self.color_scale_data_defined_in.setEnabled(False)
+                self.color_scale_data_defined_in_label.setVisible(False)
+                self.color_scale_data_defined_in_check.setVisible(False)
+                self.color_scale_data_defined_in_invert_check.setVisible(False)
+
     def getMarkerSize(self):
         '''
         get the marker size
@@ -240,10 +298,24 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
 
         if self.size_defined_button.isActive():
             mark_size = self.size_defined_button.toProperty().expressionString()
-            self.marker_size_value = self.layer_combo.currentLayer().getValues(mark_size, selectedOnly=self.selected_feature_check.isChecked())[0]
+            self.marker_size_value = QgsVectorLayerUtils.getValues(self.layer_combo.currentLayer(), mark_size, selectedOnly=self.selected_feature_check.isChecked())[0]
         else:
             # self.marker_size.setEnabled(True)
             self.marker_size_value = self.marker_size.value()
+
+    def getColorDefined(self):
+        '''
+        get the color code for plotly from the dataDefined button
+        '''
+
+        if self.in_color_defined_button.isActive():
+            if self.ptype == 'scatter' or self.ptype == 'bar' or self.ptype == 'ternary':
+                in_color = self.in_color_defined_button.toProperty().expressionString()
+                self.in_color = QgsVectorLayerUtils.getValues(self.layer_combo.currentLayer(), in_color, selectedOnly=self.selected_feature_check.isChecked())[0]
+            else:
+                self.in_color = hex_to_rgb(self.in_color_combo)
+        else:
+            self.in_color = hex_to_rgb(self.in_color_combo)
 
     def setCheckState(self):
         '''
@@ -293,19 +365,33 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
                     self.layer_combo.currentLayer().selectByIds(dic['tid'])
 
 
-            # if a clicking event is performed
+            # if a clicking event is performed depending on the plot type
             elif dic["mode"] == 'clicking':
                 if dic['type'] == 'scatter':
                     self.layer_combo.currentLayer().selectByIds([dic['fidd']])
-                else:
-                    # build the expression from the js dic (customdata)
-                    exp = ''' "{}" = '{}' '''.format(dic['field'], dic['id'])
-                    # print(exp)
+                elif dic["type"] == 'pie':
+                    exp = ''' "{}" = '{}' '''.format(dic['field'], dic['label'])
                     # set the iterator with the expression as filter in feature request
                     request = QgsFeatureRequest().setFilterExpression(exp)
                     it = self.layer_combo.currentLayer().getFeatures(request)
                     self.layer_combo.currentLayer().selectByIds([f.id() for f in it])
-
+                elif dic["type"] == 'histogram':
+                    vmin = dic['id'] - dic['bin_step'] / 2
+                    vmax = dic['id'] + dic['bin_step'] / 2
+                    exp = ''' "{}" <= {} AND "{}" > {} '''.format(dic['field'], vmax ,dic['field'], vmin)
+                    request = QgsFeatureRequest().setFilterExpression(exp)
+                    it = self.layer_combo.currentLayer().getFeatures(request)
+                    self.layer_combo.currentLayer().selectByIds([f.id() for f in it])
+                elif dic["type"] == 'scatterternary':
+                    self.layer_combo.currentLayer().selectByIds([dic['fid']])
+                else:
+                    # build the expression from the js dic (customdata)
+                    exp = ''' "{}" = '{}' '''.format(dic['field'], dic['id'])
+                    # set the iterator with the expression as filter in feature request
+                    request = QgsFeatureRequest().setFilterExpression(exp)
+                    it = self.layer_combo.currentLayer().getFeatures(request)
+                    self.layer_combo.currentLayer().selectByIds([f.id() for f in it])
+                    # print(exp)
         except:
             pass
 
@@ -323,7 +409,7 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         help_link = os.path.join(os.path.dirname(__file__), 'help/build/html/{}/{}.html'.format(locale, self.ptype))
         # check if the file exists, else open the default home page
         if not os.path.exists(help_link):
-            help_link = os.path.join(os.path.dirname(__file__), 'help/build/html/{}/index.html'.format(locale))
+            help_link = os.path.join(os.path.dirname(__file__), 'help/build/html/en/{}.html'.format(self.ptype))
 
         help_url = QUrl.fromLocalFile(help_link)
         self.help_view.load(help_url)
@@ -399,7 +485,7 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         for k, v in self.orientation_box.items():
             self.orientation_combo.addItem(k, v)
 
-        # BoxPlot outliers
+        # BoxPlot and Violin outliers
         self.outliers_combo.clear()
         self.outliers_dict = OrderedDict([
             (self.tr('No Outliers'), False),
@@ -531,9 +617,8 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         for k, v in self.contour_type.items():
             self.contour_type_combo.addItem(k, v)
 
-        # Contour Plot color scale
+        # Contour Plot color scale and Data Defined Color scale
         self.col_scale = OrderedDict([
-            (self.tr('OrangeToRed'), 'pairs'),
             (self.tr('Grey Scale'), 'Greys'),
             (self.tr('Green Scale'), 'Greens'),
             (self.tr('Fire Scale'), 'Hot'),
@@ -549,19 +634,21 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             (self.tr('BlueWhitePurple'), 'Picnic'),
         ])
         self.color_scale_combo.clear()
+        self.color_scale_data_defined_in.clear()
         for k, v in self.col_scale.items():
             self.color_scale_combo.addItem(k, v)
+            self.color_scale_data_defined_in.addItem(k, v)
 
         # according to the plot type, change the label names
 
         # BoxPlot
-        if self.ptype == 'box':
-            self.x_label.setText(self.tr('Grouping Field\n(Optional)'))
+        if self.ptype == 'box' or self.ptype == 'violin':
+            self.x_label.setText(self.tr('Grouping Field \n(Optional)'))
             # set the horizontal and vertical size of the label and reduce the label font size
             ff = QFont()
-            ff.setPointSizeF(8.5)
+            ff.setPointSizeF(8)
             self.x_label.setFont(ff)
-            self.x_label.setFixedWidth(80)
+            self.x_label.setFixedWidth(100)
             self.orientation_label.setText(self.tr('Box Orientation'))
             self.in_color_lab.setText(self.tr('Box Color'))
 
@@ -593,41 +680,57 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         for k, v in self.info_hover.items():
             self.info_combo.addItem(k, v)
 
+        # Violin side
+        self.violin_side = OrderedDict([
+            (self.tr('Both Sides'), 'both'),
+            (self.tr('Only Left'), 'negative'),
+            (self.tr('Only right'), 'positive')
+        ])
+        self.violinSideCombo.clear()
+        for k, v in self.violin_side.items():
+            self.violinSideCombo.addItem(k, v)
+
+
         # dictionary with all the widgets and the plot they belong to
         self.widgetType = {
             # plot properties
             self.layer_combo: ['all'],
             self.x_label: ['all'],
             self.x_combo: ['all'],
-            self.y_label: ['scatter', 'bar', 'box', 'pie', '2dhistogram', 'polar', 'ternary', 'contour'],
-            self.y_combo: ['scatter', 'bar', 'box', 'pie', '2dhistogram', 'polar', 'ternary', 'contour'],
+            self.y_label: ['scatter', 'bar', 'box', 'pie', '2dhistogram', 'polar', 'ternary', 'contour', 'violin'],
+            self.y_combo: ['scatter', 'bar', 'box', 'pie', '2dhistogram', 'polar', 'ternary', 'contour', 'violin'],
             self.z_label: ['ternary'],
             self.z_combo: ['ternary'],
             self.info_label: ['scatter'],
             self.info_combo: ['scatter'],
-            self.in_color_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary'],
-            self.in_color_combo: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary'],
-            self.out_color_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary'],
-            self.out_color_combo: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary'],
-            self.marker_width_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary'],
-            self.marker_width: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary'],
+            self.in_color_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
+            self.in_color_combo: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
+            self.in_color_defined_button: ['scatter', 'bar', 'ternary'],
+            self.color_scale_data_defined_in: ['scatter', 'bar', 'ternary'],
+            self.color_scale_data_defined_in_label: ['scatter', 'bar', 'ternary'],
+            self.color_scale_data_defined_in_check: ['scatter', 'bar', 'ternary'],
+            self.color_scale_data_defined_in_invert_check: ['bar', 'ternary'],
+            self.out_color_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
+            self.out_color_combo: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
+            self.marker_width_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
+            self.marker_width: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
             self.marker_size_lab: ['scatter', 'polar', 'ternary'],
             self.marker_size: ['scatter', 'polar', 'ternary'],
             self.size_defined_button: ['scatter', 'ternary'],
-            self.marker_type_lab: ['scatter'],
-            self.marker_type_combo: ['scatter'],
-            self.alpha_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary'],
-            self.alpha_slid: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary'],
-            self.alpha_num: ['scatter', 'bar', 'box', 'histogram', 'ternary'],
-            self.mGroupBox_2: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'contour', '2dhistogram'],
+            self.marker_type_lab: ['scatter', 'polar'],
+            self.marker_type_combo: ['scatter', 'polar'],
+            self.alpha_lab: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
+            self.alpha_slid: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'violin'],
+            self.alpha_num: ['scatter', 'bar', 'box', 'histogram', 'ternary', 'violin'],
+            self.mGroupBox_2: ['scatter', 'bar', 'box', 'histogram', 'polar', 'ternary', 'contour', '2dhistogram', 'violin'],
             self.bar_mode_lab: ['bar', 'histogram'],
             self.bar_mode_combo: ['bar', 'histogram'],
             self.legend_label: ['all'],
             self.legend_title: ['all'],
-            self.point_lab: ['scatter', 'ternary'],
-            self.point_combo: ['scatter', 'ternary'],
-            self.line_lab: ['scatter'],
-            self.line_combo: ['scatter'],
+            self.point_lab: ['scatter', 'ternary', 'polar'],
+            self.point_combo: ['scatter', 'ternary', 'polar'],
+            self.line_lab: ['scatter', 'polar'],
+            self.line_combo: ['scatter', 'polar'],
             self.color_scale_label: ['contour', '2dhistogram'],
             self.color_scale_combo: ['contour', '2dhistogram'],
             self.contour_type_label: ['contour'],
@@ -636,13 +739,13 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
 
             # layout customization
             self.show_legend_check: ['all'],
-            self.orientation_legend_check: ['scatter', 'bar', 'box', 'histogram', 'ternary', 'pie'],
+            self.orientation_legend_check: ['scatter', 'bar', 'box', 'histogram', 'ternary', 'pie', 'violin'],
             self.plot_title_lab: ['all'],
             self.plot_title_line: ['all'],
-            self.x_axis_label: ['scatter', 'bar', 'box', 'histogram', '2dhistogram', 'ternary'],
-            self.x_axis_title: ['scatter', 'bar', 'box', 'histogram', '2dhistogram', 'ternary'],
-            self.y_axis_label: ['scatter', 'bar', 'box', '2dhistogram', 'ternary'],
-            self.y_axis_title: ['scatter', 'bar', 'box', '2dhistogram', 'ternary'],
+            self.x_axis_label: ['scatter', 'bar', 'box', 'histogram', '2dhistogram', 'ternary', 'violin'],
+            self.x_axis_title: ['scatter', 'bar', 'box', 'histogram', '2dhistogram', 'ternary', 'violin'],
+            self.y_axis_label: ['scatter', 'bar', 'box', '2dhistogram', 'ternary', 'violin'],
+            self.y_axis_title: ['scatter', 'bar', 'box', '2dhistogram', 'ternary', 'violin'],
             self.z_axis_label: ['ternary'],
             self.z_axis_title: ['ternary'],
             self.x_axis_mode_label: ['scatter', 'box'],
@@ -651,20 +754,26 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             self.y_axis_mode_combo: ['scatter', 'box'],
             self.invert_x_check: ['scatter', 'bar', 'box', 'histogram', '2dhistogram'],
             self.invert_y_check: ['scatter', 'bar', 'box', 'histogram', '2dhistogram'],
-            self.orientation_label: ['bar', 'box', 'histogram'],
-            self.orientation_combo: ['bar', 'box', 'histogram'],
+            self.orientation_label: ['bar', 'box', 'histogram', 'violin'],
+            self.orientation_combo: ['bar', 'box', 'histogram', 'violin'],
             self.box_statistic_label: ['box'],
             self.box_statistic_combo: ['box'],
-            self.outliers_label: ['box'],
-            self.outliers_combo: ['box'],
+            self.outliers_label: ['box', 'violin'],
+            self.outliers_combo: ['box', 'violin'],
+            self.showMeanCheck: ['violin'],
             self.range_slider_combo: ['scatter'],
             self.hist_norm_label: ['histogram'],
             self.hist_norm_combo: ['histogram'],
             self.additional_info_label: ['scatter', 'ternary'],
             self.additional_info_combo: ['scatter', 'ternary'],
             self.cumulative_hist_check: ['histogram'],
+            self.invert_hist_check: ['histogram'],
             self.bins_check: ['histogram'],
             self.bins_value: ['histogram'],
+            self.bar_gap_label: ['histogram'],
+            self.bar_gap: ['histogram'],
+            self.violinSideLabel: ['violin'],
+            self.violinSideCombo: ['violin'],
         }
 
         # enable the widget according to the plot type
@@ -679,6 +788,12 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         # disable by default the bins value box
         # if not explicit, the upper loop will enable it
         self.bins_value.setEnabled(False)
+
+        # disable at firts run the color data defined buttons
+        self.color_scale_data_defined_in.setVisible(False)
+        self.color_scale_data_defined_in_label.setVisible(False)
+        self.color_scale_data_defined_in_check.setVisible(False)
+        self.color_scale_data_defined_in_invert_check.setVisible(False)
 
     def refreshWidgets2(self):
         '''
@@ -703,7 +818,7 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         of scatterplot
         '''
 
-        if self.marker_type_combo.currentText() == 'Points':
+        if self.marker_type_combo.currentText() == self.tr('Points'):
             self.point_lab.setEnabled(True)
             self.point_lab.setVisible(True)
             self.point_combo.setEnabled(True)
@@ -712,7 +827,7 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             self.line_lab.setVisible(False)
             self.line_combo.setEnabled(False)
             self.line_combo.setVisible(False)
-        elif self.marker_type_combo.currentText() == 'Lines':
+        elif self.marker_type_combo.currentText() == self.tr('Lines'):
             self.point_lab.setEnabled(False)
             self.point_lab.setVisible(False)
             self.point_combo.setEnabled(False)
@@ -754,6 +869,7 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
 
         # call the method to get the correct marker size
         self.getMarkerSize()
+        self.getColorDefined()
 
         # set the variable to invert the x and y axis order
         self.x_invert = True
@@ -768,16 +884,27 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         if self.bins_check.isChecked():
             self.bin_val = self.bins_value.value()
 
+        # set the chance to invert the histogram direction
+        self.invert_hist = 'increasing'
+        if self.invert_hist_check.isChecked():
+            self.invert_hist = 'decreasing'
+
         # get the plot type from the combo box
         self.ptype = self.plot_types2[self.plot_combo.currentText()]
 
         # shortcut to shorten the code in the following dictionary
-        xx = self.layer_combo.currentLayer().getValues(self.x_combo.currentText(), selectedOnly=self.selected_feature_check.isChecked())[0]
-        yy = self.layer_combo.currentLayer().getValues(self.y_combo.currentText(), selectedOnly=self.selected_feature_check.isChecked())[0]
-        zz = self.layer_combo.currentLayer().getValues(self.z_combo.currentText(), selectedOnly=self.selected_feature_check.isChecked())[0]
+        xx = QgsVectorLayerUtils.getValues(self.layer_combo.currentLayer(), self.x_combo.currentText(), selectedOnly=self.selected_feature_check.isChecked())[0]
+        yy = QgsVectorLayerUtils.getValues(self.layer_combo.currentLayer(), self.y_combo.currentText(), selectedOnly=self.selected_feature_check.isChecked())[0]
+        zz = QgsVectorLayerUtils.getValues(self.layer_combo.currentLayer(), self.z_combo.currentText(), selectedOnly=self.selected_feature_check.isChecked())[0]
 
         # call the function that will clean the data from NULL values
         xx, yy, zz, = cleanData(xx, yy, zz)
+
+        ## if colorscale should be visible or not
+        if self.color_scale_data_defined_in_check.isVisible() and self.color_scale_data_defined_in_check.isChecked():
+            color_scale_visible = True
+        else:
+            color_scale_visible = False
 
         # dictionary of all the plot properties
         plot_properties = {
@@ -787,13 +914,16 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             # featureIds are the ID of each feature needed for the selection and zooming method
             'featureIds':getIds(self.layer_combo.currentLayer(), self.selected_feature_check.isChecked()),
             'featureBox':getSortedId(self.layer_combo.currentLayer(), xx),
-            'custom':self.x_combo.currentText(),
+            'custom':[self.x_combo.currentText()],
             'hover_text':self.info_hover[self.info_combo.currentText()],
-            'additional_hover_text':self.layer_combo.currentLayer().getValues(self.additional_info_combo.currentText(), selectedOnly=self.selected_feature_check.isChecked())[0],
+            'additional_hover_text':QgsVectorLayerUtils.getValues(self.layer_combo.currentLayer(), self.additional_info_combo.currentText(), selectedOnly=self.selected_feature_check.isChecked())[0],
             'x_name':self.x_combo.currentText(),
             'y_name':self.y_combo.currentText(),
             'z_name':self.z_combo.currentText(),
-            'in_color':hex_to_rgb(self.in_color_combo),
+            'in_color':self.in_color,
+            'colorscale_in':self.col_scale[self.color_scale_data_defined_in.currentText()],
+            'show_colorscale_legend':color_scale_visible,
+            'invert_color_scale':self.color_scale_data_defined_in_invert_check.isChecked(),
             'out_color':hex_to_rgb(self.out_color_combo),
             'marker_width':self.marker_width.value(),
             'marker_size':self.marker_size_value,
@@ -810,7 +940,10 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             'color_scale':self.col_scale[self.color_scale_combo.currentText()],
             'show_lines':self.show_lines_check.isChecked(),
             'cumulative':self.cumulative_hist_check.isChecked(),
-            'bins':self.bin_val
+            'invert_hist':self.invert_hist,
+            'bins':self.bin_val,
+            'show_mean_line':self.showMeanCheck.isChecked(),
+            'violin_side':self.violin_side[self.violinSideCombo.currentText()]
         }
 
         # define the legend orientation
@@ -833,6 +966,7 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             'y_type':self.y_axis_type[self.y_axis_mode_combo.currentText()],
             'x_inv':self.x_invert,
             'y_inv':self.y_invert,
+            'bargaps':self.bar_gap.value()
         }
 
 
@@ -914,8 +1048,8 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
 
                     self.plot_path = self.plotobject.buildSubPlots('col', gr, 1, pl, tt)
             except:
-                iface.messageBar().pushMessage(self.tr("Plot types are not comapatible for subplotting"),
-                             level=QgsMessageBar.CRITICAL, duration=3)
+                iface.messageBar().pushMessage(self.tr("{} plot is not compatible for subplotting\n see ".format(self.ptype)),
+                             Qgis.MessageLevel(2), duration=5)
                 return
 
         # connect to simple function that reloads the view
@@ -988,28 +1122,31 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             painter.end()
             if self.plot_file:
                 image.save(self.plot_file)
-                iface.messageBar().pushMessage(self.tr("Plot succesfully saved"), level=QgsMessageBar.INFO, duration=2)
+                iface.messageBar().pushMessage(self.tr("Plot succesfully saved"), Qgis.MessageLevel(0), duration=2)
         except:
-            iface.messageBar().pushMessage(self.tr("Please select a directory to save the plot"), level=QgsMessageBar.WARNING, duration=4)
+            iface.messageBar().pushMessage(self.tr("Please select a directory to save the plot"), Qgis.MessageLevel(1), duration=4)
 
-    def savePlotAsHtml(self):
+    def savePlotAsHtml(self, plot_file=None):
         '''
         save the plot as html local file. Basically just let the user choose
         where to save the already existing html file created by plotly
         '''
 
-        self.plot_file = QFileDialog.getSaveFileName(self, self.tr("Save plot"), "", "*.html")
+        try:
+            self.plot_file = QFileDialog.getSaveFileName(self, self.tr("Save plot"), "", "*.html")
+            self.plot_file = self.plot_file[0]
+        except:
+            self.plot_file = plot_file
 
-        self.plot_file = self.plot_file[0]
-        if self.plot_file:
+        if self.plot_file and not self.plot_file.endswith('.html'):
             self.plot_file += '.html'
 
         if self.plot_file:
             copyfile(self.plot_path, self.plot_file)
-            iface.messageBar().pushMessage(self.tr("Plot succesfully saved"), level=QgsMessageBar.INFO, duration=2)
+            iface.messageBar().pushMessage(self.tr("Plot succesfully saved"), Qgis.MessageLevel(0), duration=2)
 
 
-    def showPlot(self, plot_input_dic):
+    def showPlotFromDic(self, plot_input_dic):
         '''
         Allows to call the plugin from the python console
 
@@ -1041,63 +1178,10 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         dq['plot_prop']['y'] = [i["some_field"] for i in vl.getFeatures()]
 
         # call the final method
-        myplugin.loadPlot(dq)
+        myplugin.loadPlotFromDic(dq)
         '''
-
-
         # keys of the nested plot_prop and layout_prop have to be the SAME of
         # those created in buildProperties and buildLayout method
-
-        # prepare the default dictionary with None values
-        # plot properties
-        plot_dic = {}
-        plot_dic["plot_type"]=None
-        plot_dic["layer"]=None
-        plot_dic["plot_prop"] = {}
-        plot_dic["plot_prop"]["x"]=None
-        plot_dic["plot_prop"]["y"]=None
-        plot_dic["plot_prop"]["z"]=None,
-        plot_dic["plot_prop"]["marker"]=None
-        plot_dic["plot_prop"]["featureIds"]=None
-        plot_dic["plot_prop"]["featureBox"]=None
-        plot_dic["plot_prop"]["custom"]=None
-        plot_dic["plot_prop"]["hover_text"]=None
-        plot_dic["plot_prop"]["additional_hover_text"]=None
-        plot_dic["plot_prop"]["x_name"]=None
-        plot_dic["plot_prop"]["y_name"]=None
-        plot_dic["plot_prop"]["z_name"]=None
-        plot_dic["plot_prop"]["in_color"]=None
-        plot_dic["plot_prop"]["out_color"]=None
-        plot_dic["plot_prop"]["marker_width"]=None
-        plot_dic["plot_prop"]["marker_size"]=None
-        plot_dic["plot_prop"]["marker_symbol"]=None
-        plot_dic["plot_prop"]["line_dash"]=None
-        plot_dic["plot_prop"]["box_orientation"]=None
-        plot_dic["plot_prop"]["opacity"]=None
-        plot_dic["plot_prop"]["box_stat"]=None
-        plot_dic["plot_prop"]["box_outliers"]=None
-        plot_dic["plot_prop"]["name"]=None
-        plot_dic["plot_prop"]["normalization"]=None
-        plot_dic["plot_prop"]["cont_type"]=None
-        plot_dic["plot_prop"]["color_scale"]=None
-        plot_dic["plot_prop"]["show_lines"]=None
-
-        # layout nested dictionary
-        plot_dic["layout_prop"] = {}
-        plot_dic["layout_prop"]['title']='Plot Title'
-        plot_dic["layout_prop"]['legend']=True
-        plot_dic["layout_prop"]["x_title"]=None
-        plot_dic["layout_prop"]["y_title"]=None
-        plot_dic["layout_prop"]["z_title"]=None
-        plot_dic["layout_prop"]["xaxis"] = None
-        plot_dic["layout_prop"]["bar_mode"]=None
-        plot_dic["layout_prop"]["x_type"]=None
-        plot_dic["layout_prop"]["y_type"]=None
-        plot_dic["layout_prop"]["x_inv"]=None
-        plot_dic["layout_prop"]["y_inv"]=None
-        plot_dic['layout_prop']["range_slider"] = {}
-        plot_dic['layout_prop']["range_slider"]["visible"] = False
-
 
         # set some dialog widget from the input dictionary
         # plot type in the plot_combo combobox
@@ -1111,29 +1195,24 @@ class DataPlotlyDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
 
         try:
             self.layer_combo.setLayer(plot_input_dic["layer"])
-            self.x_combo.setField(plot_input_dic["plot_prop"]["x_name"])
-            self.y_combo.setField(plot_input_dic["plot_prop"]["y_name"])
+            if 'x_name' in plot_input_dic["plot_prop"] and plot_input_dic["plot_prop"]["x_name"]:
+                self.x_combo.setField(plot_input_dic["plot_prop"]["x_name"])
+            if 'y_name' in plot_input_dic["plot_prop"] and plot_input_dic["plot_prop"]["y_name"]:
+                self.y_combo.setField(plot_input_dic["plot_prop"]["y_name"])
+            if 'z_name' in plot_input_dic["plot_prop"] and plot_input_dic["plot_prop"]["z_name"]:
+                self.z_combo.setField(plot_input_dic["plot_prop"]["z_name"])
         except:
             pass
 
-        # update the plot_prop
-        for k in plot_dic["plot_prop"]:
-            if k not in plot_input_dic["plot_prop"]:
-                plot_input_dic["plot_prop"][k] = plot_dic["plot_prop"][k]
-
-        # update the layout_prop
-        for k in plot_dic["layout_prop"]:
-            if k not in plot_input_dic["layout_prop"]:
-                plot_input_dic["layout_prop"][k] = plot_dic["layout_prop"][k]
-
-
-        # get the plot type from the input dictionary
-        plot_type=plot_input_dic['plot_type']
-
         # create Plot instance
-        plot_standalone = Plot(plot_type, plot_input_dic["plot_prop"], plot_input_dic["layout_prop"])
+        plot_standalone = Plot(
+            plot_input_dic['plot_type'],
+            plot_input_dic["plot_prop"],
+            plot_input_dic["layout_prop"]
+        )
 
         # initialize plot properties and build them
+        plot_standalone.buildTrace()
         plot_standalone.buildTrace()
 
         # initialize layout properties and build them

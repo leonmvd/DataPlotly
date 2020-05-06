@@ -26,10 +26,14 @@ from PyQt5.QtWidgets import QAction
 
 # Initialize Qt resources from file resources.py
 from DataPlotly.resources import *
+
 # Import the code for the dialog
 from DataPlotly.data_plotly_dialog import DataPlotlyDockWidget
 import os.path
 
+# import processing provider
+from qgis.core import QgsApplication
+from .processing.dataplotly_provider import DataPlotlyProvider
 
 class DataPlotly:
     """QGIS Plugin Implementation."""
@@ -44,8 +48,13 @@ class DataPlotly:
         """
         # Save reference to the QGIS interface
         self.iface = iface
+
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
+
+        # initialize processing provider
+        self.provider = DataPlotlyProvider()
+
         # initialize locale
         locale = QSettings().value('locale/userLocale')[0:2]
         locale_path = os.path.join(
@@ -173,6 +182,9 @@ class DataPlotly:
             callback=self.run,
             parent=self.iface.mainWindow())
 
+        # Add processing provider
+        QgsApplication.processingRegistry().addProvider(self.provider)
+
     def onClosePlugin(self):
         """Cleanup necessary items here when plugin dockwidget is closed"""
 
@@ -199,6 +211,9 @@ class DataPlotly:
         # remove the toolbar
         del self.toolbar
 
+        # Remove processing provider
+        QgsApplication.processingRegistry().removeProvider(self.provider)
+
 
     def run(self):
         """Run method that loads and starts the plugin"""
@@ -223,10 +238,9 @@ class DataPlotly:
             self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
 
-    def loadPlot(self, plot_dic):
+    def loadPlotFromDic(self, plot_dic):
         '''
         call the method to load the DataPlotly dialog with a given dictionary
         '''
-
-        self.dlg.showPlot(plot_dic)
+        self.dockwidget.showPlotFromDic(plot_dic)
         self.run()
